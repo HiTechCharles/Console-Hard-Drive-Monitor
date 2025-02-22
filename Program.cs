@@ -38,6 +38,8 @@ namespace Talking_Hard_Drive_Stats
 
             #region display computer info
             //print and speak that the program has started
+            Console.ForegroundColor = ConsoleColor.White;
+
             Console.WriteLine("Current system and hard disk information:");
             
             //store cpu percentage as integer,  string is used to display and speak same info
