@@ -23,6 +23,7 @@ namespace Talking_Hard_Drive_Stats
 
             #region Performance counter Initialization
             Console.Title = "Talking Hard Drive Stats";  //change window title
+            Console.ForegroundColor = ConsoleColor.White;  //text color for console
             PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");   //gets cpu usage %
             PerformanceCounter FreeRamCounter = new PerformanceCounter("Memory", "Available MBytes");
             PerformanceCounter UptimeCounter = new PerformanceCounter("System",
