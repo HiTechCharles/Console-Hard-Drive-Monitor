@@ -12,7 +12,7 @@ namespace Talking_Hard_Drive_Stats
             #region Variable Declaration
             //strings to hold cpu, ram, and uptime messages 
             //that get displayed and spoken
-            //*flag holds free and total space suffix (GB/TB), availabnle drive letters
+            //*flag holds free and total space suffix (GB/TB), available drive letters
             string CPUMessage, RamAvailMessage, UptimeMessage;
             String FreeSpaceSuffix, TotalSpaceSuffix, AvailableDrives = "Available Drives are:  ";
             //store info for all drives
@@ -22,8 +22,6 @@ namespace Talking_Hard_Drive_Stats
             #endregion
 
             #region Performance counter Initialization
-            Console.Title = "Talking Hard Drive Stats";  //change window title
-            Console.ForegroundColor = ConsoleColor.White;  //text color for console
             PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");   //gets cpu usage %
             PerformanceCounter FreeRamCounter = new PerformanceCounter("Memory", "Available MBytes");
             PerformanceCounter UptimeCounter = new PerformanceCounter("System",
@@ -36,10 +34,10 @@ namespace Talking_Hard_Drive_Stats
             Thread.Sleep(500);
             #endregion
 
-
             #region display computer info
             //print and speak that the program has started
             Console.ForegroundColor = ConsoleColor.White;
+            Console.Title = "Talking Hard Drive Stats";  //change window title
 
             Console.WriteLine("Current system and hard disk information:");
             
@@ -48,6 +46,7 @@ namespace Talking_Hard_Drive_Stats
 
             RAMConverted = FreeRamCounter.NextValue() / 1024;  //get mb ram free, convert to GB
             RamAvailMessage = "Available Memory:  " + RAMConverted.ToString("n1");   //tostring formats output to 1 decimal place
+
 
             //get the uptime in hours, minutes, etc instead of just seconds
             TimeSpan UpTimeSpan = TimeSpan.FromSeconds(UptimeCounter.NextValue());
@@ -60,46 +59,44 @@ namespace Talking_Hard_Drive_Stats
             Console.WriteLine(UptimeMessage);  //purnt uptime id D,H,M,S format
             Console.WriteLine("   Computer Name:  {0}", Environment.MachineName);
             Console.WriteLine("    Current User:  {0}", Environment.UserName);
-
             Console.WriteLine();
             #endregion
 
             #region hard drive stats
+            Console.WriteLine("     DRIVE LETTER         FREE SPACE     TOTAL SPACE     % FULL");
             foreach (DriveInfo d in allDrives)   //for each available drive
             {
                 if (d.IsReady == true)   //if drive is available 
                 {
                     AvailableDrives += d.Name.Substring(0, 1) + ", ";
                     PercentFull = 100 - (d.AvailableFreeSpace / (float)d.TotalSize) * 100;  //% full
-                    FreeSpaceConverted = d.TotalFreeSpace / 1024 / 1024 / 1024;  //convert free space from bytes to gb
-                    FreeSpaceSuffix = "Gigabytes";  //set suffix for free disk space display
+                    FreeSpaceConverted = d.TotalFreeSpace / (1024.0 * 1024 * 1024); //convert free space from bytes to gb
+                    FreeSpaceSuffix = "GB";  //set suffix for free disk space display
                     if (FreeSpaceConverted >= 1024)  //if > 1024 gb, convert to tb
                     {
-                        FreeSpaceSuffix = "Terabytes";  //change free space suffix 
+                        FreeSpaceSuffix = "TB";  //change free space suffix 
                         FreeSpaceConverted /= 1024;  //calculate free space as terabytes
                     }
 
-                    TotalSpaceConverted = d.TotalSize / 1024 / 1024 / 1024;  //gets total size and makes it in gb
-                    TotalSpaceSuffix = "Gigabytes";
+                    TotalSpaceConverted = d.TotalSize / (1024.0 * 1024 * 1024);  //gets total size and makes it in gb
+                    TotalSpaceSuffix = "GB";
                     if (TotalSpaceConverted >= 1024)
                     {
-                        TotalSpaceSuffix = "Terabytes";  //change free space suffix 
+                        TotalSpaceSuffix = "TB";  //change free space suffix 
                         TotalSpaceConverted /= 1024;
                     }
                     //write drive letter, volume label, free space, total space, % full
-                    Console.WriteLine("{0} {1} has {2} {3}B free, {4} {5}B Total, {6}% Full",
-                            d.Name.Substring(0, 1), d.VolumeLabel,
-                            FreeSpaceConverted.ToString("n2"),
-                            FreeSpaceSuffix.Substring(0, 1),
-                            TotalSpaceConverted.ToString("n2"),
-                            TotalSpaceSuffix.Substring(0, 1),
-                            PercentFull.ToString("n1"));
+                    //----|----|----|----|----|----|----|----|----|----|----|----|----|
+                    Console.WriteLine("{0,-20} {1,15} {2,15} {3,10}",
+                        d.Name.Substring(0, 1) + " " + d.VolumeLabel.PadRight(18),
+                        FreeSpaceConverted.ToString("n2") + " " + FreeSpaceSuffix,
+                        TotalSpaceConverted.ToString("n2") + " " + TotalSpaceSuffix,
+                        PercentFull.ToString("n1") + "%");
                 }
             }
             #endregion
             Console.WriteLine("\nPress a Key to exit.");
             Console.ReadKey();
-
         }
     }
 }
