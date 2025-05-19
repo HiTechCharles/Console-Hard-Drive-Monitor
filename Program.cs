@@ -42,28 +42,29 @@ namespace Talking_Hard_Drive_Stats
             Console.WriteLine("Current system and hard disk information:");
             
             //store cpu percentage as integer,  string is used to display and speak same info
-            CPUMessage = " CPU Utilization:  " + (int)cpuCounter.NextValue() + "%";
+            CPUMessage = " Processor Utilization:  " + (int)cpuCounter.NextValue() + "%";
 
             RAMConverted = FreeRamCounter.NextValue() / 1024;  //get mb ram free, convert to GB
-            RamAvailMessage = "Available Memory:  " + RAMConverted.ToString("n1");   //tostring formats output to 1 decimal place
-
+            double TotalMemory = new Microsoft.VisualBasic.Devices.ComputerInfo().TotalPhysicalMemory / 1024 / 1024 / 1024 + 1;
+            RamAvailMessage =" Free and Total Memory:  " + RAMConverted.ToString("n2") + " GB of " + TotalMemory.ToString();  //store free ant total ram
 
             //get the uptime in hours, minutes, etc instead of just seconds
             TimeSpan UpTimeSpan = TimeSpan.FromSeconds(UptimeCounter.NextValue());
-            UptimeMessage = string.Format("System UpTime is:  {0} Days, {1} Hours, {2} Minutes, {3} Seconds",
+            UptimeMessage = string.Format("      System UpTime is:  {0} Days, {1} Hours, {2} Minutes, {3} Seconds",
                 (int)UpTimeSpan.TotalDays, UpTimeSpan.Hours, UpTimeSpan.Minutes, UpTimeSpan.Seconds);
 
             Console.WriteLine("");  //blank line
             Console.WriteLine(CPUMessage);  //display cpu and ram data
             Console.WriteLine(RamAvailMessage + " GB");  //for display, use GB, for speech, use gigabyte
             Console.WriteLine(UptimeMessage);  //purnt uptime id D,H,M,S format
-            Console.WriteLine("   Computer Name:  {0}", Environment.MachineName);
-            Console.WriteLine("    Current User:  {0}", Environment.UserName);
+            Console.WriteLine("         Computer Name:  {0}", Environment.MachineName);
+            Console.WriteLine("  Logged in User Name::  {0}", Environment.UserName);
             Console.WriteLine();
             #endregion
 
             #region hard drive stats
             Console.WriteLine("     DRIVE LETTER         FREE SPACE     TOTAL SPACE     % FULL");
+            Console.WriteLine("     ────────────         ──────────     ───────────     ──────");
             foreach (DriveInfo d in allDrives)   //for each available drive
             {
                 if (d.IsReady == true)   //if drive is available 
