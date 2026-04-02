@@ -1,103 +1,211 @@
 ﻿using System;
-using System.Threading;         //used for thread.sleep
-using System.Diagnostics;       //performance counter usage
-using System.IO;                //get hard drive statistics
+using System.Diagnostics;       // PerformanceCounter
+using System.Globalization;
+using System.IO;                // DriveInfo
+using System.Text;              // StringBuilder
+using System.Threading;         // Thread.Sleep
 
 namespace Talking_Hard_Drive_Stats
 {
     class Program
     {
+        // Constants for better maintainability
+        private const int COUNTER_WARMUP_DELAY_MS = 500;
+        private const double BYTES_TO_KB = 1024.0;
+        private const double BYTES_TO_MB = BYTES_TO_KB * 1024.0;
+        private const double BYTES_TO_GB = BYTES_TO_MB * 1024.0;
+        private const double BYTES_TO_TB = BYTES_TO_GB * 1024.0;
+        private const double MB_TO_GB = 1024.0;
+
         static void Main()
         {
-            #region Variable Declaration
-            //strings to hold cpu, ram, and uptime messages 
-            //that get displayed and spoken
-            //*flag holds free and total space suffix (GB/TB), available drive letters
-            string CPUMessage, RamAvailMessage, UptimeMessage;
-            String FreeSpaceSuffix, TotalSpaceSuffix, AvailableDrives = "Available Drives are:  ";
-            //store info for all drives
-            DriveInfo[] allDrives = DriveInfo.GetDrives();
-            //holds ram, free and total space, and percent full
-            double FreeSpaceConverted, TotalSpaceConverted, RAMConverted, PercentFull;
-            #endregion
-
-            #region Performance counter Initialization
-            PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");   //gets cpu usage %
-            PerformanceCounter FreeRamCounter = new PerformanceCounter("Memory", "Available MBytes");
-            PerformanceCounter UptimeCounter = new PerformanceCounter("System",
-                "System Up Time");  //system uptime
-            
-            cpuCounter.NextValue();  //first performance counters values will be 0
-            FreeRamCounter.NextValue();
-            UptimeCounter.NextValue();
-            //wait 0.5 seconds to give the computer time to get usable values
-            Thread.Sleep(500);
-            #endregion
-
-            #region display computer info
-            //print and speak that the program has started
+            Console.Title = "Talking Hard Drive Stats";
             Console.ForegroundColor = ConsoleColor.White;
-            Console.Title = "Talking Hard Drive Stats";  //change window title
 
-            Console.WriteLine("Current system and hard disk information:");
-            
-            //store cpu percentage as integer,  string is used to display and speak same info
-            CPUMessage = " Processor Utilization:  " + (int)cpuCounter.NextValue() + "%";
+            DriveInfo[] allDrives = DriveInfo.GetDrives();
 
-            RAMConverted = FreeRamCounter.NextValue() / 1024;  //get mb ram free, convert to GB
-            double TotalMemory = new Microsoft.VisualBasic.Devices.ComputerInfo().TotalPhysicalMemory / 1024 / 1024 / 1024 + 1;
-            RamAvailMessage =" Free and Total Memory:  " + RAMConverted.ToString("n2") + " GB of " + TotalMemory.ToString();  //store free ant total ram
-
-            //get the uptime in hours, minutes, etc instead of just seconds
-            TimeSpan UpTimeSpan = TimeSpan.FromSeconds(UptimeCounter.NextValue());
-            UptimeMessage = string.Format("      System UpTime is:  {0} Days, {1} Hours, {2} Minutes, {3} Seconds",
-                (int)UpTimeSpan.TotalDays, UpTimeSpan.Hours, UpTimeSpan.Minutes, UpTimeSpan.Seconds);
-
-            Console.WriteLine("");  //blank line
-            Console.WriteLine(CPUMessage);  //display cpu and ram data
-            Console.WriteLine(RamAvailMessage + " GB");  //for display, use GB, for speech, use gigabyte
-            Console.WriteLine(UptimeMessage);  //purnt uptime id D,H,M,S format
-            Console.WriteLine("         Computer Name:  {0}", Environment.MachineName);
-            Console.WriteLine("  Logged in User Name::  {0}", Environment.UserName);
+            DisplaySystemInformation();
             Console.WriteLine();
-            #endregion
 
-            #region hard drive stats
-            Console.WriteLine("     DRIVE LETTER         FREE SPACE     TOTAL SPACE     % FULL");
-            Console.WriteLine("     ────────────         ──────────     ───────────     ──────");
-            foreach (DriveInfo d in allDrives)   //for each available drive
+            DisplayDriveInformation(allDrives);
+
+            Console.WriteLine("\nPress any key to exit.");
+            Console.ReadKey();
+        }
+
+        private static void DisplaySystemInformation()
+        {
+            Console.WriteLine("Current system and hard disk information:");
+            Console.WriteLine();
+
+            try
             {
-                if (d.IsReady == true)   //if drive is available 
+                using (var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total"))
+                using (var freeRamCounter = new PerformanceCounter("Memory", "Available MBytes"))
+                using (var uptimeCounter = new PerformanceCounter("System", "System Up Time"))
                 {
-                    AvailableDrives += d.Name.Substring(0, 1) + ", ";
-                    PercentFull = 100 - (d.AvailableFreeSpace / (float)d.TotalSize) * 100;  //% full
-                    FreeSpaceConverted = d.TotalFreeSpace / (1024.0 * 1024 * 1024); //convert free space from bytes to gb
-                    FreeSpaceSuffix = "GB";  //set suffix for free disk space display
-                    if (FreeSpaceConverted >= 1024)  //if > 1024 gb, convert to tb
-                    {
-                        FreeSpaceSuffix = "TB";  //change free space suffix 
-                        FreeSpaceConverted /= 1024;  //calculate free space as terabytes
-                    }
+                    // First NextValue() often returns 0; allow counter time to populate
+                    cpuCounter.NextValue();
+                    freeRamCounter.NextValue();
+                    uptimeCounter.NextValue();
+                    Thread.Sleep(COUNTER_WARMUP_DELAY_MS);
 
-                    TotalSpaceConverted = d.TotalSize / (1024.0 * 1024 * 1024);  //gets total size and makes it in gb
-                    TotalSpaceSuffix = "GB";
-                    if (TotalSpaceConverted >= 1024)
-                    {
-                        TotalSpaceSuffix = "TB";  //change free space suffix 
-                        TotalSpaceConverted /= 1024;
-                    }
-                    //write drive letter, volume label, free space, total space, % full
-                    //----|----|----|----|----|----|----|----|----|----|----|----|----|
-                    Console.WriteLine("{0,-20} {1,15} {2,15} {3,10}",
-                        d.Name.Substring(0, 1) + " " + d.VolumeLabel.PadRight(18),
-                        FreeSpaceConverted.ToString("n2") + " " + FreeSpaceSuffix,
-                        TotalSpaceConverted.ToString("n2") + " " + TotalSpaceSuffix,
-                        PercentFull.ToString("n1") + "%");
+                    DisplayCpuUsage(cpuCounter);
+                    DisplayMemoryInfo(freeRamCounter);
+                    DisplayUptime(uptimeCounter);
+                    DisplayComputerInfo();
                 }
             }
-            #endregion
-            Console.WriteLine("\nPress a Key to exit.");
-            Console.ReadKey();
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.WriteLine("Warning: Insufficient permissions to read performance counters: " + ex.Message);
+                Console.WriteLine();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Warning: Failed to read some performance counters: " + ex.Message);
+                Console.WriteLine();
+            }
+        }
+
+        private static void DisplayCpuUsage(PerformanceCounter cpuCounter)
+        {
+            int cpuPercent = (int)cpuCounter.NextValue();
+            Console.WriteLine(" Processor Utilization: {0}%", cpuPercent);
+        }
+
+        private static void DisplayMemoryInfo(PerformanceCounter freeRamCounter)
+        {
+            double ramGbAvailable = freeRamCounter.NextValue() / MB_TO_GB;
+            double totalMemoryGb = GetTotalPhysicalMemoryGB();
+
+            Console.WriteLine(" Free and Total Memory: {0} GB of {1} GB",
+                ramGbAvailable.ToString("N2", CultureInfo.CurrentCulture),
+                totalMemoryGb.ToString("N2", CultureInfo.CurrentCulture));
+        }
+
+        private static double GetTotalPhysicalMemoryGB()
+        {
+            try
+            {
+                var computerInfo = new Microsoft.VisualBasic.Devices.ComputerInfo();
+                return computerInfo.TotalPhysicalMemory / BYTES_TO_GB;
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        private static void DisplayUptime(PerformanceCounter uptimeCounter)
+        {
+            TimeSpan upTimeSpan = TimeSpan.FromSeconds(uptimeCounter.NextValue());
+            Console.WriteLine("      System UpTime is: {0} Days, {1} Hours, {2} Minutes, {3} Seconds",
+                (int)upTimeSpan.TotalDays, upTimeSpan.Hours, upTimeSpan.Minutes, upTimeSpan.Seconds);
+        }
+
+        private static void DisplayComputerInfo()
+        {
+            Console.WriteLine("         Computer Name: {0}", Environment.MachineName);
+            Console.WriteLine("   Logged in User Name: {0}", Environment.UserName);
+        }
+
+        private static void DisplayDriveInformation(DriveInfo[] allDrives)
+        {
+            Console.WriteLine("     DRIVE LETTER         FREE SPACE     TOTAL SPACE     % FULL");
+            Console.WriteLine("     ────────────         ──────────     ───────────     ──────");
+
+            var availableDrivesBuilder = new StringBuilder("Available Drives are: ");
+            bool hasAvailableDrives = false;
+
+            foreach (var drive in allDrives)
+            {
+                if (TryDisplayDriveInfo(drive))
+                {
+                    if (hasAvailableDrives)
+                        availableDrivesBuilder.Append(", ");
+
+                    availableDrivesBuilder.Append(drive.Name.Substring(0, 1));
+                    hasAvailableDrives = true;
+                }
+            }
+
+            Console.WriteLine();
+            if (hasAvailableDrives)
+            {
+                Console.WriteLine(availableDrivesBuilder.ToString());
+            }
+            else
+            {
+                Console.WriteLine("No available drives found.");
+            }
+        }
+
+        private static bool TryDisplayDriveInfo(DriveInfo drive)
+        {
+            try
+            {
+                if (!drive.IsReady)
+                    return false;
+
+                long totalBytes = drive.TotalSize;
+                long freeBytes = drive.AvailableFreeSpace;
+
+                double percentFull = totalBytes > 0
+                    ? 100.0 * (totalBytes - freeBytes) / totalBytes
+                    : 0.0;
+
+                string freeStr = FormatBytes(freeBytes);
+                string totalStr = FormatBytes(totalBytes);
+                string volumeLabel = GetVolumeLabel(drive);
+                string driveLetter = drive.Name.Substring(0, 1);
+
+                Console.WriteLine("{0,-20} {1,15} {2,15} {3,10}",
+                    driveLetter + " " + volumeLabel.PadRight(18),
+                    freeStr,
+                    totalStr,
+                    percentFull.ToString("N1", CultureInfo.CurrentCulture) + "%");
+
+                return true;
+            }
+            catch (IOException)
+            {
+                // Skip drives that throw IO exceptions (e.g., media not present)
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Skip inaccessible drives
+                return false;
+            }
+        }
+
+        private static string GetVolumeLabel(DriveInfo drive)
+        {
+            try
+            {
+                return drive.VolumeLabel ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            var culture = CultureInfo.CurrentCulture;
+
+            if (bytes >= BYTES_TO_TB)
+                return (bytes / BYTES_TO_TB).ToString("N2", culture) + " TB";
+            if (bytes >= BYTES_TO_GB)
+                return (bytes / BYTES_TO_GB).ToString("N2", culture) + " GB";
+            if (bytes >= BYTES_TO_MB)
+                return (bytes / BYTES_TO_MB).ToString("N2", culture) + " MB";
+            if (bytes >= BYTES_TO_KB)
+                return (bytes / BYTES_TO_KB).ToString("N2", culture) + " KB";
+
+            return bytes + " B";
         }
     }
 }
