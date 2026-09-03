@@ -6,7 +6,7 @@ using System.IO;                // DriveInfo
 using System.Text;              // StringBuilder
 using System.Threading;         // Thread.Sleep
 using System.Linq;
-using System.Speech.Synthesis;  // SpeechSynthesizer
+using ShadowFlame;              // TTS  
 
 namespace Console_Hard_Drive_Monitor
 {
@@ -19,50 +19,32 @@ namespace Console_Hard_Drive_Monitor
         private const double BYTES_TO_GB = BYTES_TO_MB * 1024.0;
         private const double BYTES_TO_TB = BYTES_TO_GB * 1024.0;
         private const double MB_TO_GB = 1024.0;
-        private const int Speech_Rate = 3; // Speech rate for the synthesizer
-        private const int Speech_Volume = 100; // Volume for the synthesizer (0-100)    
-        private static SpeechSynthesizer HDDTalk = new SpeechSynthesizer();
-        private static bool SpeechEnabled = true; // Flag to enable or disable speech output
-        private static string AppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CHDM");
-        private static string OptionsFile = Path.Combine(AppDirectory, "options.txt");
+
+        // Single shared TTS instance (disposable)
+        private static readonly TTS tts = new TTS();
 
         static void Main()
         {
             Console.Title = "Talking Hard Drive Stats";
             Console.ForegroundColor = ConsoleColor.White;
 
+
             DriveInfo[] allDrives = DriveInfo.GetDrives();
-            InitializeSpeech();
-            LoadOptions(); // Load speech option from file or prompt user if not found56
             DisplaySystemInformation();
-            SpeakAndDisplay();
+            tts.SpeakAndDisplay();
 
             DisplayDriveInformation(allDrives);
 
-            SpeakAndDisplay("\nPress any key to exit.");
+            tts.SpeakAndDisplay("\nPress any key to exit.");
             Console.ReadKey();
         }
 
-        static void InitializeSpeech()
-        {
-            HDDTalk.Rate = Speech_Rate;
-            HDDTalk.Volume = Speech_Volume;
-        }       
 
-        static void SpeakAndDisplay(string message = "")
-        {
-            Console.WriteLine(message);
-            if (SpeechEnabled)
-            {
-                message = SuffixSearch(message);
-                HDDTalk.SpeakAsync(message);
-            }
-        }
 
         static void DisplaySystemInformation()
         {
-            SpeakAndDisplay("\n\nCurrent system and hard disk information:");
-            SpeakAndDisplay();
+            tts.SpeakAndDisplay("\n\nCurrent system and hard disk information Generated on" + Dates.Long());
+            tts.SpeakAndDisplay();
 
             try
             {
@@ -82,13 +64,13 @@ namespace Console_Hard_Drive_Monitor
             }
             catch (UnauthorizedAccessException ex)
             {
-                SpeakAndDisplay("Warning: Insufficient permissions to read performance counters: " + ex.Message);
-                SpeakAndDisplay();
+                tts.SpeakAndDisplay("Warning: Insufficient permissions to read performance counters: " + ex.Message);
+                tts.SpeakAndDisplay();
             }
             catch (Exception ex)
             {
-                SpeakAndDisplay("Warning: Failed to read some performance counters: " + ex.Message);
-                SpeakAndDisplay();
+                tts.SpeakAndDisplay("Warning: Failed to read some performance counters: " + ex.Message);
+                tts.SpeakAndDisplay();
             }
         }
 
@@ -96,7 +78,7 @@ namespace Console_Hard_Drive_Monitor
         {
             int cpuPercent = (int)cpuCounter.NextValue();
             string cpuUsageMessage = $"       CPU Utilization:  {cpuPercent}%";  
-            SpeakAndDisplay(cpuUsageMessage);
+            tts.SpeakAndDisplay(cpuUsageMessage);
         }
 
         static void DisplayMemoryInfo(PerformanceCounter freeRamCounter)
@@ -105,7 +87,7 @@ namespace Console_Hard_Drive_Monitor
             double totalMemoryGb = GetTotalPhysicalMemoryGB();
             string memoryInfoMessage = $" Free and Total Memory:  {ramGbAvailable:N2} GB of {totalMemoryGb:N2} GB";
 
-            SpeakAndDisplay(memoryInfoMessage);
+            tts.SpeakAndDisplay(memoryInfoMessage);
         }
 
         static double GetTotalPhysicalMemoryGB()
@@ -138,15 +120,15 @@ namespace Console_Hard_Drive_Monitor
         {
             TimeSpan upTimeSpan = TimeSpan.FromSeconds(uptimeCounter.NextValue());
             string uptimeMessage = $"      System UpTime is:  {((int)upTimeSpan.TotalDays)} Days, {upTimeSpan.Hours} Hours, {upTimeSpan.Minutes} Minutes, {upTimeSpan.Seconds} Seconds";
-            SpeakAndDisplay(uptimeMessage);
+            tts.SpeakAndDisplay(uptimeMessage);
         }
 
         static void DisplayComputerInfo()
         {
             string computerInfoMessage = $"         Computer Name:  {Environment.MachineName}";
-            SpeakAndDisplay(computerInfoMessage);
+            tts.SpeakAndDisplay(computerInfoMessage);
             string userInfoMessage = $"   Logged in User Name:  {Environment.UserName}";
-            SpeakAndDisplay(userInfoMessage);
+            tts.SpeakAndDisplay(userInfoMessage);
         }
 
         static void DisplayDriveInformation(DriveInfo[] allDrives)
@@ -166,14 +148,14 @@ namespace Console_Hard_Drive_Monitor
                 }
             }
 
-            SpeakAndDisplay();
+            tts.SpeakAndDisplay();
             if (hasAvailableDrives)
             {
-                SpeakAndDisplay(availableDrivesBuilder.ToString());
+                tts.SpeakAndDisplay(availableDrivesBuilder.ToString());
             }
             else
             {
-                SpeakAndDisplay("No available drives found.");
+                tts.SpeakAndDisplay("No available drives found.");
             }
         }
 
@@ -197,7 +179,7 @@ namespace Console_Hard_Drive_Monitor
                 string PercentFullStr = percentFull.ToString("N2", CultureInfo.CurrentCulture) + "% Full";
                 string driveLetter = drive.Name.Substring(0, 1);
 
-                SpeakAndDisplay($"Drive {driveLetter}: {volumeLabel}, {freeStr}{totalStr}{PercentFullStr}");
+                tts.SpeakAndDisplay($"Drive {driveLetter}: {volumeLabel}, {freeStr}{totalStr}{PercentFullStr}");
                 return true;
             }
             catch (IOException)
@@ -209,80 +191,6 @@ namespace Console_Hard_Drive_Monitor
             {
                 // Skip inaccessible drives
                 return false;
-            }
-        }
-
-        static void SaveOptions()
-        {
-            try
-            {
-                if (!Directory.Exists(AppDirectory))
-                {
-                    Directory.CreateDirectory(AppDirectory);
-                }
-                using (StreamWriter writer = new StreamWriter(OptionsFile))
-                {
-                    writer.WriteLine(SpeechEnabled ? "SpeechEnabled=true" : "SpeechEnabled=false");
-                }
-            }
-            catch (Exception ex)
-            {
-                SpeakAndDisplay("Warning: Failed to save options: " + ex.Message);
-            }
-        }
-
-        static void AskforSpeech()
-
-        {
-            string ChangeSetting = "\n\nTo be reprompted, remove the AppDirectory folder CHDM.";
-            
-            SpeakAndDisplay("\nDo you want to enable speech output? (Y/N): ");
-            string input = Console.ReadLine()?.Trim().ToUpperInvariant();
-            if (input == "Y")
-            {
-                SpeechEnabled = true;
-                SpeakAndDisplay("Speech output enabled.");
-            }
-            else if (input == "N")
-            {
-                SpeechEnabled = false;
-                SpeakAndDisplay("Speech output disabled.");
-            }
-            else
-            {
-                SpeakAndDisplay("Invalid input. Please enter 'Y' or 'N'.");
-                AskforSpeech(); // Recursively ask again for valid input
-            }
-            SpeakAndDisplay(ChangeSetting);
-            SaveOptions();
-        }
-
-        static void LoadOptions()
-        {
-            try
-            {
-                if (File.Exists(OptionsFile))
-                {
-                    using (StreamReader reader = new StreamReader(OptionsFile))
-                    {
-                        string line;
-                        while ((line = reader.ReadLine()) != null)
-                        {
-                            if (line.StartsWith("SpeechEnabled=", StringComparison.OrdinalIgnoreCase))
-                            {
-                                SpeechEnabled = line.Substring("SpeechEnabled=".Length).Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    AskforSpeech(); // Prompt for speech option if no options file exists
-                }
-            }
-            catch (Exception ex)
-            {
-                SpeakAndDisplay("Warning: Failed to load options: " + ex.Message);
             }
         }
 
