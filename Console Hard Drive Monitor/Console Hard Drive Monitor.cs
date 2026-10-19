@@ -84,8 +84,9 @@ namespace Console_Hard_Drive_Monitor
             double ramGbAvailable = freeRamCounter.NextValue() / MB_TO_GB;
             double totalMemoryGb = GetTotalPhysicalMemoryGB();
             string memoryInfoMessage = $" Free and Total Memory:  {ramGbAvailable:N2} GB of {totalMemoryGb:N2} GB";
-
-            tts.SpeakAndDisplay(memoryInfoMessage);
+            string TTSMemoryInfoMessage = SuffixSearch(memoryInfoMessage); // Replace suffixes for TTS
+            Console.WriteLine(memoryInfoMessage);
+            tts.SpeakAsync(TTSMemoryInfoMessage);
         }
 
         static double GetTotalPhysicalMemoryGB()

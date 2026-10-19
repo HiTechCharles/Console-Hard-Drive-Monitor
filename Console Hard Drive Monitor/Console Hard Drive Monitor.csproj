@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Console Hard Drive Monitor.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Add package required for PerformanceCounter on modern .NET -->
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
     <!-- Use System.Management to query total physical memory on Windows -->
