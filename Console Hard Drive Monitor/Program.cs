@@ -21,13 +21,13 @@ namespace Console_Hard_Drive_Monitor
         private const double MB_TO_GB = 1024.0;
 
         // Single shared TTS instance (disposable)
-        private static readonly TTS tts = new TTS();
+        private static ConsoleTTS tts = new ConsoleTTS(); //text to speech object
 
         static void Main()
         {
             Console.Title = "Talking Hard Drive Stats";
             Console.ForegroundColor = ConsoleColor.White;
-
+            Task.WaitAll(tts?.InitializeAsync() ?? Task.CompletedTask);  //
 
             DriveInfo[] allDrives = DriveInfo.GetDrives();
             DisplaySystemInformation();
@@ -38,8 +38,6 @@ namespace Console_Hard_Drive_Monitor
             tts.SpeakAndDisplay("\nPress any key to exit.");
             Console.ReadKey();
         }
-
-
 
         static void DisplaySystemInformation()
         {
@@ -179,7 +177,10 @@ namespace Console_Hard_Drive_Monitor
                 string PercentFullStr = percentFull.ToString("N2", CultureInfo.CurrentCulture) + "% Full";
                 string driveLetter = drive.Name.Substring(0, 1);
 
-                tts.SpeakAndDisplay($"Drive {driveLetter}: {volumeLabel}, {freeStr}{totalStr}{PercentFullStr}");
+                string DriveInfoMessage =($"Drive {driveLetter}: {volumeLabel}, {freeStr}{totalStr}{PercentFullStr}");
+                Console.WriteLine(DriveInfoMessage);
+                string TTSDriveInfoMessage = SuffixSearch(DriveInfoMessage); // Replace suffixes for TTS
+                tts.SpeakAsync(TTSDriveInfoMessage);
                 return true;
             }
             catch (IOException)
